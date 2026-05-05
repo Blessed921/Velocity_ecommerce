@@ -27,7 +27,7 @@ const Profile = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white/5 border border-white/10 p-8">
           <label className="text-[10px] font-black uppercase text-stone-500 tracking-widest block mb-1">Email</label>
-          <p className="font-bold text-lg text-white">{profile?.email}</p>
+          <p className="font-bold text-lg text-white truncate hover:overflow-visible hover:whitespace-normal break-all">{profile?.email}</p>
         </div>
         <div className="bg-white/5 border border-white/10 p-8">
           <label className="text-[10px] font-black uppercase text-stone-500 tracking-widest block mb-1">Full Name</label>
@@ -271,7 +271,7 @@ const AdminUsers = () => {
             {users.map(u => (
               <tr key={u.uid} className="hover:bg-white/5 transition-colors">
                 <td className="p-6 font-black italic uppercase tracking-widest">{u.displayName}</td>
-                <td className="p-6 text-stone-400">{u.email}</td>
+                <td className="p-6 text-stone-400 break-all max-w-[200px]">{u.email}</td>
                 <td className="p-6">
                   <span className={`px-2 py-1 rounded-full text-[8px] uppercase tracking-widest font-black ${
                     u.role === UserRole.ADMIN ? 'bg-red-500/10 text-red-500' : 'bg-white/10 text-stone-400'
