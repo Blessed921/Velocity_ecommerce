@@ -1,22 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { SAMPLE_SNEAKERS } from '../lib/seedData';
 import { Heart, ShoppingBag, Truck, RotateCcw, Share2, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
+import { sneakerService } from '../services/dbService';
+import { Sneaker } from '../types';
 
 export default function ProductDetails() {
   const { id } = useParams();
   const { addToCart, toggleWishlist, wishlist } = useApp();
-  const sneaker = SAMPLE_SNEAKERS.find(s => s.id === id);
   
+  const [sneaker, setSneaker] = useState<Sneaker | null>(null);
+  const [loading, setLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<number | null>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [isAdding, setIsAdding] = useState(false);
 
+  useEffect(() => {
+    const fetchSneaker = async () => {
+      // First check sample data
+      const sample = SAMPLE_SNEAKERS.find(s => s.id === id);
+      if (sample) {
+        setSneaker(sample);
+        setLoading(false);
+        return;
+      }
+
+      // If not in sample, check DB
+      try {
+        const dbItems = await sneakerService.getAll();
+        const item = dbItems?.find(s => s.id === id);
+        if (item) setSneaker(item);
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchSneaker();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-stone-600 font-bold uppercase tracking-[0.4em] animate-pulse">Decrypting Product Archives...</div>
+      </div>
+    );
+  }
+
   if (!sneaker) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center font-serif italic text-4xl">
-      <h1 className="tracking-tighter mb-8 opacity-40">SNEAKER NOT FOUND</h1>
+      <h1 className="tracking-tighter mb-8 opacity-40 uppercase">Sneaker Not Found</h1>
       <Link to="/products" className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-white pb-1">Back to Origin</Link>
     </div>
   );

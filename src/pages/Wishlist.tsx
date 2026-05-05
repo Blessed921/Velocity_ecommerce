@@ -4,12 +4,47 @@ import { Link } from 'react-router-dom';
 import { Heart, ShoppingBag, ArrowRight } from 'lucide-react';
 import { SAMPLE_SNEAKERS } from '../lib/seedData';
 import { motion } from 'motion/react';
+import { sneakerService } from '../services/dbService';
+import { Sneaker } from '../types';
 
 export default function Wishlist() {
-  const { wishlist, profile } = useApp();
+  const { wishlist, profile, toggleWishlist } = useApp();
+  const [dbSneakers, setDbSneakers] = React.useState<Sneaker[]>([]);
+  const [loading, setLoading] = React.useState(true);
   
+  React.useEffect(() => {
+    const fetchSneakers = async () => {
+      try {
+        const data = await sneakerService.getAll();
+        setDbSneakers(data || []);
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchSneakers();
+  }, []);
+
+  const allPossibleSneakers = React.useMemo(() => {
+    const combined = [...dbSneakers];
+    SAMPLE_SNEAKERS.forEach(sample => {
+      if (!dbSneakers.find(p => p.id === sample.id)) {
+        combined.push(sample);
+      }
+    });
+    return combined;
+  }, [dbSneakers]);
+
   const currentWishlist = wishlist || [];
-  const wishlistItems = SAMPLE_SNEAKERS.filter(s => currentWishlist.includes(s.id));
+  const wishlistItems = allPossibleSneakers.filter(s => currentWishlist.includes(s.id));
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-stone-500 font-bold uppercase tracking-[0.3em] animate-pulse">Syncing Wishlist Archive...</div>
+      </div>
+    );
+  }
 
   if (wishlistItems.length === 0) {
     return (
@@ -40,8 +75,16 @@ export default function Wishlist() {
             layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             className="group relative bg-stone-50 p-6 flex flex-col space-y-4"
           >
+            <button 
+              onClick={() => toggleWishlist(item.id)}
+              className="absolute top-8 right-8 z-20 bg-white/80 backdrop-blur-sm p-2 rounded-full text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+              title="Remove from Wishlist"
+            >
+              <Heart size={16} fill="currentColor" />
+            </button>
             <div className="aspect-square bg-stone-100 overflow-hidden relative">
               <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
               <Link to={`/product/${item.id}`} className="absolute inset-0 z-10" />

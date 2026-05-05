@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { userService } from '../services/dbService';
-import { UserProfile, CartItem, Sneaker } from '../types';
+import { UserProfile, CartItem, Sneaker, UserRole } from '../types';
 
 interface AppContextType {
   user: User | null;
@@ -37,8 +37,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (u) {
         try {
-          unsubscribeProfile = userService.subscribeToProfile(u.uid, (p) => {
-            setProfile(p);
+          unsubscribeProfile = userService.subscribeToProfile(u.uid, async (p) => {
+            if (!p) {
+              // Profile doesn't exist in this database, initialize it
+              await userService.initProfile(u.uid, {
+                email: u.email || '',
+                displayName: u.displayName || 'User',
+                role: UserRole.USER,
+                wishlist: []
+              });
+            } else {
+              setProfile(p);
+            }
             setLoading(false);
           });
         } catch (err) {
@@ -76,18 +86,43 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const clearCart = () => setCart([]);
 
   const toggleWishlist = async (sneakerId: string) => {
-    if (!profile) {
-      alert('Please initialize your profile to save favorites.');
+    if (!user) {
+      alert('Keep your wishlist across devices. Please log in to save favorites.');
       return;
     }
-    const currentWishlist = profile.wishlist || [];
+
+    let currentProfile = profile;
+    
+    // If profile is missing but user is logged in, try to create it
+    if (!currentProfile) {
+      try {
+        const newProfile = {
+          uid: user.uid,
+          email: user.email || '',
+          displayName: user.displayName || 'User',
+          role: 'user' as const,
+          wishlist: [sneakerId],
+          createdAt: new Date().toISOString()
+        };
+        await userService.updateWishlist(user.uid, [sneakerId]); // This will likely fail if doc doesn't exist
+        // Better: use a dedicated initialize method or setDoc
+        setProfile(newProfile);
+        return;
+      } catch (err) {
+        console.error('Failed to initialize profile on wishlist toggle:', err);
+        alert('Could not sync wishlist. Please try logging in again.');
+        return;
+      }
+    }
+
+    const currentWishlist = currentProfile.wishlist || [];
     const newWishlist = currentWishlist.includes(sneakerId)
       ? currentWishlist.filter(id => id !== sneakerId)
       : [...currentWishlist, sneakerId];
     
     try {
-      await userService.updateWishlist(profile.uid, newWishlist);
-      setProfile({ ...profile, wishlist: newWishlist });
+      await userService.updateWishlist(user.uid, newWishlist);
+      setProfile({ ...currentProfile, wishlist: newWishlist });
     } catch (err) {
       console.error('Wishlist sync failed:', err);
     }

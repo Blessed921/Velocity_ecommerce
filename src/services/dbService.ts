@@ -1,6 +1,6 @@
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, onSnapshot, orderBy, limit, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import { UserRole, UserProfile, Sneaker, Review, Order } from '../types';
+import { UserRole, UserProfile, Sneaker, Review, Order, Collection } from '../types';
 
 export enum OperationType {
   CREATE = 'create',
@@ -11,7 +11,7 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -73,6 +73,78 @@ export const sneakerService = {
     }, (e) => {
       handleFirestoreError(e, OperationType.GET, path);
     });
+  },
+
+  async add(data: Partial<Sneaker>) {
+    const path = 'sneakers';
+    try {
+      await addDoc(collection(db, path), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, path);
+    }
+  },
+
+  async update(id: string, data: Partial<Sneaker>) {
+    const path = `sneakers/${id}`;
+    try {
+      const docRef = doc(db, 'sneakers', id);
+      await updateDoc(docRef, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
+  }
+};
+
+export const formatDate = (timestamp: any) => {
+  try {
+    if (!timestamp) return 'No Date';
+    
+    // Handle Firestore Timestamp objects (live objects from SDK)
+    if (typeof timestamp.toDate === 'function') {
+      return timestamp.toDate().toLocaleDateString();
+    }
+    
+    // Handle serialized Firestore Timestamps (plain objects with seconds/nanoseconds)
+    if (typeof timestamp === 'object' && timestamp !== null && 'seconds' in timestamp) {
+      const val = Number(timestamp.seconds);
+      if (!isNaN(val)) {
+        return new Date(val * 1000).toLocaleDateString();
+      }
+    }
+    
+    // Handle JS Date objects
+    if (timestamp instanceof Date) {
+      if (!isNaN(timestamp.getTime())) {
+        return timestamp.toLocaleDateString();
+      }
+      return 'No Date';
+    }
+    
+    // Handle ISO strings or numbers
+    // If it's a number, assume milliseconds unless it's too small (then seconds)
+    let dateInput = timestamp;
+    if (typeof timestamp === 'number') {
+      // If timestamp is like 1625000000 (seconds), multiply by 1000
+      if (timestamp < 10000000000) {
+        dateInput = timestamp * 1000;
+      }
+    }
+
+    const date = new Date(dateInput);
+    if (!isNaN(date.getTime())) {
+      const result = date.toLocaleDateString();
+      if (result !== "Invalid Date") return result;
+    }
+    
+    return 'No Date';
+  } catch (err) {
+    return 'No Date';
   }
 };
 
@@ -95,12 +167,35 @@ export const userService = {
     const path = `users/${uid}`;
     try {
       const docRef = doc(db, 'users', uid);
-      await updateDoc(docRef, { 
+      await setDoc(docRef, { 
         wishlist,
         updatedAt: serverTimestamp()
-      });
+      }, { merge: true });
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, path);
+      handleFirestoreError(e, OperationType.WRITE, path);
+    }
+  },
+
+  async initProfile(uid: string, profileData: Partial<UserProfile>) {
+    const path = `users/${uid}`;
+    try {
+      const docRef = doc(db, 'users', uid);
+      const docSnap = await getDoc(docRef);
+      
+      const data: any = {
+        ...profileData,
+        updatedAt: serverTimestamp()
+      };
+
+      if (!docSnap.exists()) {
+        data.createdAt = serverTimestamp();
+        data.wishlist = profileData.wishlist || [];
+        data.role = profileData.role || UserRole.USER;
+      }
+
+      await setDoc(docRef, data, { merge: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
     }
   },
 
@@ -116,6 +211,17 @@ export const userService = {
     }, (e) => {
       handleFirestoreError(e, OperationType.GET, path);
     });
+  },
+
+  async getAllUsers() {
+    const path = 'users';
+    try {
+      const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, path);
+    }
   }
 };
 
@@ -141,5 +247,98 @@ export const orderService = {
     } catch (e) {
       handleFirestoreError(e, OperationType.LIST, path);
     }
+  },
+
+  async getAll() {
+    const path = 'orders';
+    try {
+      const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, path);
+    }
   }
 };
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning';
+  read: boolean;
+  createdAt: any;
+}
+
+export const notifyService = {
+  async getByUser(uid: string) {
+    const path = 'notifications';
+    try {
+      const q = query(collection(db, path), where('userId', '==', uid), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as AppNotification));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, path);
+    }
+  },
+
+  async markAsRead(id: string) {
+    const path = `notifications/${id}`;
+    try {
+      const docRef = doc(db, 'notifications', id);
+      await updateDoc(docRef, { read: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
+  },
+
+  async send(notification: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) {
+    const path = 'notifications';
+    try {
+      return await addDoc(collection(db, path), {
+        ...notification,
+        read: false,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, path);
+    }
+  }
+};
+
+export const collectionService = {
+  async getAll() {
+    const path = 'collections';
+    try {
+      const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collection));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.LIST, path);
+    }
+  },
+
+  async add(data: Partial<Collection>) {
+    const path = 'collections';
+    try {
+      await addDoc(collection(db, path), {
+        ...data,
+        createdAt: serverTimestamp()
+      });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.CREATE, path);
+    }
+  },
+
+  async delete(id: string) {
+    const path = `collections/${id}`;
+    try {
+      await deleteDoc(doc(db, 'collections', id));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, path);
+    }
+  }
+};
+
+

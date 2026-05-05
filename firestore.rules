@@ -36,11 +36,15 @@ service cloud.firestore {
                       incoming().keys().hasAll(['email', 'role', 'createdAt']);
       
       allow update: if isOwner(userId) && (
-        isValidUser(incoming()) && (
+        isValidUser(incoming()) && 
+        incoming().createdAt == existing().createdAt &&
+        incoming().role == existing().role &&
+        incoming().email == existing().email &&
+        (
           // Action: Update Profile
           (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'wishlist', 'updatedAt']) &&
            incoming().updatedAt == request.time) ||
-          // Action: Sync (Handle first-time login for Google users who might need to update timestamp)
+          // Action: Sync
           (incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt']) &&
            incoming().updatedAt == request.time)
         )

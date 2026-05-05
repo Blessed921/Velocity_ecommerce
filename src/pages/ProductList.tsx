@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { Filter, SlidersHorizontal, ChevronDown, Search } from 'lucide-react';
 import { SAMPLE_SNEAKERS } from '../lib/seedData';
 import { motion } from 'motion/react';
+import { sneakerService } from '../services/dbService';
+import { Sneaker } from '../types';
 
 const ProductCard: React.FC<{ sneaker: any }> = ({ sneaker }) => (
   <motion.div 
@@ -10,11 +12,11 @@ const ProductCard: React.FC<{ sneaker: any }> = ({ sneaker }) => (
     initial={{ opacity: 0 }}
     animate={{ opacity: 1 }}
     whileHover={{ y: -5 }}
-    className="group relative bg-[#111] border border-white/5 p-6 flex flex-col space-y-4 hover:border-white/20 transition-all"
+    className="group relative bg-[#111] border border-white/5 p-6 flex flex-col space-y-4 hover:border-white/20 transition-all h-full"
   >
     <div className="aspect-[4/5] bg-stone-900 overflow-hidden relative">
       <img 
-        src={sneaker.images[0]} 
+        src={sneaker.images && sneaker.images[0] ? sneaker.images[0] : 'https://images.unsplash.com/photo-1542291026-7eec264c27ff'} 
         alt={sneaker.name} 
         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
         referrerPolicy="no-referrer"
@@ -24,12 +26,12 @@ const ProductCard: React.FC<{ sneaker: any }> = ({ sneaker }) => (
       )}
     </div>
     <div className="flex flex-col flex-1">
-      <h3 className="font-serif text-lg tracking-tight leading-tight">{sneaker.name}</h3>
+      <h3 className="font-serif text-lg tracking-tight leading-tight uppercase font-black italic">{sneaker.name}</h3>
       <p className="text-stone-600 text-[10px] font-bold uppercase tracking-widest mt-1 mb-4">{sneaker.brand}</p>
       <div className="mt-auto flex justify-between items-center">
         <p className="font-bold text-lg">${sneaker.price}.00</p>
         <button className="text-[9px] font-black uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity">
-          Add To Cart
+          View Detail
         </button>
       </div>
     </div>
@@ -43,24 +45,71 @@ const ProductCard: React.FC<{ sneaker: any }> = ({ sneaker }) => (
 export default function ProductList() {
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || 'all';
+  const initialSearch = searchParams.get('search') || '';
   
+  const [dbSneakers, setDbSneakers] = useState<Sneaker[]>([]);
+  const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState(initialCategory);
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
+
+  useEffect(() => {
+    const fetchSneakers = async () => {
+      try {
+        const data = await sneakerService.getAll();
+        setDbSneakers(data || []);
+      } catch (err) {
+        console.error(err);
+      }
+      setLoading(false);
+    };
+    fetchSneakers();
+  }, []);
+
+  // Update filtered state when search params change (e.g. navigation from Collections)
+  useEffect(() => {
+    const newCat = searchParams.get('category');
+    const newSearch = searchParams.get('search');
+    if (newCat) setCategory(newCat);
+    if (newSearch !== null) setSearchQuery(newSearch);
+  }, [searchParams]);
+
+  const allProducts = useMemo(() => {
+    // Combine sample data with database data (avoid duplicates if same ID)
+    const combined = [...dbSneakers];
+    SAMPLE_SNEAKERS.forEach(sample => {
+      if (!dbSneakers.find(p => p.id === sample.id)) {
+        combined.push(sample);
+      }
+    });
+    return combined;
+  }, [dbSneakers]);
 
   const filteredProducts = useMemo(() => {
-    return SAMPLE_SNEAKERS.filter(p => {
-      const matchCategory = category === 'all' || p.categories.includes(category);
+    return allProducts.filter(p => {
+      // Handle array or single string for categories
+      const pCats = Array.isArray(p.categories) ? p.categories : (p as any).category ? [(p as any).category] : p.categories || [];
+      const matchCategory = category === 'all' || pCats.includes(category);
       const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           p.brand.toLowerCase().includes(searchQuery.toLowerCase());
       return matchCategory && matchSearch;
     }).sort((a, b) => {
       if (sortBy === 'price-low') return a.price - b.price;
       if (sortBy === 'price-high') return b.price - a.price;
-      return b.createdAt - a.createdAt;
+      
+      const timeA = typeof a.createdAt === 'object' && a.createdAt !== null && 'seconds' in a.createdAt 
+        ? (a.createdAt as any).seconds * 1000 
+        : Number(a.createdAt || 0);
+      const timeB = typeof b.createdAt === 'object' && b.createdAt !== null && 'seconds' in b.createdAt 
+        ? (b.createdAt as any).seconds * 1000 
+        : Number(b.createdAt || 0);
+        
+      return timeB - timeA;
     });
-  }, [category, sortBy, searchQuery]);
+  }, [allProducts, category, sortBy, searchQuery]);
+
+  const categories = ['all', 'signature', 'basketball', 'urban', 'lifestyle', 'men', 'women'];
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-10 pt-16 pb-32">
@@ -95,11 +144,11 @@ export default function ProductList() {
 
       <div className="flex flex-col md:flex-row gap-16">
         {/* Filters Sidebar */}
-        <aside className={`w-full md:w-64 flex-shrink-0 space-y-16 ${showFilters ? 'block' : 'hidden md:block'}`}>
+        <aside className="w-full md:w-64 flex-shrink-0 space-y-16 hidden md:block">
           <div>
-            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-500 mb-8 font-sans">Categories</h4>
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-stone-500 mb-8 font-sans">Archives</h4>
             <div className="flex flex-col space-y-6 text-xs font-bold uppercase tracking-widest">
-              {['all', 'men', 'women', 'kids', 'running', 'lifestyle'].map(cat => (
+              {categories.map(cat => (
                 <button 
                   key={cat}
                   onClick={() => setCategory(cat)}
@@ -107,7 +156,10 @@ export default function ProductList() {
                 >
                   <span>{cat === 'all' ? 'All Pieces' : cat}</span>
                   <span className="text-[9px] text-stone-800 group-hover:text-stone-600">
-                    {cat === 'all' ? SAMPLE_SNEAKERS.length : SAMPLE_SNEAKERS.filter(p => p.categories.includes(cat)).length}
+                    {cat === 'all' ? allProducts.length : allProducts.filter(p => {
+                      const pCats = Array.isArray(p.categories) ? p.categories : (p as any).category ? [(p as any).category] : p.categories || [];
+                      return pCats.includes(cat);
+                    }).length}
                   </span>
                 </button>
               ))}
@@ -138,7 +190,11 @@ export default function ProductList() {
 
         {/* Main Grid */}
         <div className="flex-1">
-          {filteredProducts.length > 0 ? (
+          {loading ? (
+             <div className="text-center py-40">
+               <p className="text-stone-600 font-bold uppercase tracking-widest animate-pulse">Accessing Archive...</p>
+             </div>
+          ) : filteredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
               {filteredProducts.map(p => (
                 <ProductCard key={p.id} sneaker={p} />

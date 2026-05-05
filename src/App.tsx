@@ -10,6 +10,8 @@ import Cart from './pages/Cart';
 import Auth from './pages/Auth';
 import Dashboard from './pages/Dashboard';
 import Wishlist from './pages/Wishlist';
+import Collections from './pages/Collections';
+import Support from './pages/Support';
 
 const Navbar = () => {
   const { cart, user, profile } = useApp();
@@ -108,6 +110,8 @@ export default function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard/*" element={<Dashboard />} />
               <Route path="/wishlist" element={<Wishlist />} />
+              <Route path="/collections" element={<Collections />} />
+              <Route path="/support" element={<Support />} />
             </Routes>
           </main>
           <footer className="bg-[#0a0a0a] border-t border-white/10 py-16 px-6 md:px-10 mt-20">
@@ -126,19 +130,19 @@ export default function App() {
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white mb-8">Collections</h4>
                 <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-stone-500">
-                  <li className="hover:text-white cursor-pointer transition-colors">Signature Series</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Heritage Basketball</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Urban Expedition</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Limited Drops</li>
+                  <li><Link to="/products" className="hover:text-white cursor-pointer transition-colors">Signature Series</Link></li>
+                  <li><Link to="/products?category=basketball" className="hover:text-white cursor-pointer transition-colors">Heritage Basketball</Link></li>
+                  <li><Link to="/products?category=urban" className="hover:text-white cursor-pointer transition-colors">Urban Expedition</Link></li>
+                  <li><Link to="/collections" className="hover:text-white cursor-pointer transition-colors">Limited Drops</Link></li>
                 </ul>
               </div>
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white mb-8">Support</h4>
                 <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-stone-500">
-                  <li className="hover:text-white cursor-pointer transition-colors">Track Orders</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Privacy Policy</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Global Logistics</li>
-                  <li className="hover:text-white cursor-pointer transition-colors">Concierge</li>
+                  <li><Link to="/dashboard/orders" className="hover:text-white cursor-pointer transition-colors">Track Orders</Link></li>
+                  <li><Link to="/support#privacy" className="hover:text-white cursor-pointer transition-colors">Privacy Policy</Link></li>
+                  <li><Link to="/support#shipping" className="hover:text-white cursor-pointer transition-colors">Global Logistics</Link></li>
+                  <li><Link to="/support" className="hover:text-white cursor-pointer transition-colors">Concierge</Link></li>
                 </ul>
               </div>
             </div>

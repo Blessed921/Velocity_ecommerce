@@ -5,7 +5,7 @@ import { Trash2, Plus, Minus, ArrowRight, ShieldCheck, ShoppingBag } from 'lucid
 import { motion } from 'motion/react';
 import { usePaystack } from '../hooks/usePaystack';
 import { auth } from '../lib/firebase';
-import { orderService } from '../services/dbService';
+import { orderService, notifyService } from '../services/dbService';
 
 export default function Cart() {
   const { cart, removeFromCart, clearCart, user } = useApp();
@@ -64,6 +64,14 @@ export default function Cart() {
               status: 'paid',
               shippingAddress: shippingInfo,
               paystackReference: response.reference
+            });
+
+            // Send notification
+            await notifyService.send({
+              userId: user.uid,
+              title: 'Order Confirmed',
+              message: `Payment successful. Order #${response.reference.slice(-8).toUpperCase()} has been captured and sent to logistics.`,
+              type: 'success'
             });
 
             clearCart();
@@ -215,7 +223,7 @@ export default function Cart() {
               </div>
               <button 
                 onClick={handlePaystackCheckout}
-                disabled={isVerifying || !shippingInfo.fullName || !shippingInfo.street}
+                disabled={isVerifying || !shippingInfo.fullName || !shippingInfo.street || !shippingInfo.city || !shippingInfo.phone}
                 className="w-full bg-stone-900 hover:bg-black text-white py-6 font-black uppercase tracking-widest text-sm transition-all flex items-center justify-center group disabled:opacity-50"
               >
                 {isVerifying ? 'Verifying Payment...' : 'Secure Pay with Paystack'} 

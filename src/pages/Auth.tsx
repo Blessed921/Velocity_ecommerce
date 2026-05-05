@@ -8,32 +8,9 @@ import {
   GoogleAuthProvider 
 } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { userService, handleFirestoreError, OperationType } from '../services/dbService';
 import { UserRole } from '../types';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 import { motion, AnimatePresence } from 'motion/react';
 import { Mail, Lock, User, ArrowRight } from 'lucide-react';
 
@@ -76,17 +53,28 @@ export default function Auth() {
 
       const userCredential = await attemptAuth();
       
-      if (!isLogin && userCredential) {
-        // Initialize user profile in Firestore
-        const userPath = `users/${userCredential.user.uid}`;
+      if (userCredential) {
+        // Ensure user profile exists in Firestore
+        const user = userCredential.user;
+        const userPath = `users/${user.uid}`;
+        const userRef = doc(db, 'users', user.uid);
+        
         try {
-          await setDoc(doc(db, 'users', userCredential.user.uid), {
-            email,
-            displayName: name,
-            role: UserRole.USER,
-            wishlist: [],
-            createdAt: serverTimestamp()
-          });
+          const userDoc = await getDoc(userRef);
+          
+          if (!userDoc.exists()) {
+            await userService.initProfile(user.uid, {
+              email: user.email || email,
+              displayName: user.displayName || name || 'User',
+              role: UserRole.USER,
+              wishlist: []
+            });
+          } else if (!isLogin) {
+            // If they are registering but doc somehow exists, update it
+            await userService.initProfile(user.uid, {
+              displayName: name || user.displayName || undefined
+            });
+          }
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, userPath);
         }
@@ -137,26 +125,12 @@ export default function Auth() {
       
       // Initialize/Update user profile in Firestore
       const userPath = `users/${user.uid}`;
-      const userRef = doc(db, 'users', user.uid);
       
       try {
-        const userDoc = await getDoc(userRef);
-        
-        if (!userDoc.exists()) {
-          // New user in this database
-          await setDoc(userRef, {
-            email: user.email,
-            displayName: user.displayName || 'Anonymous User',
-            role: UserRole.USER,
-            wishlist: [],
-            createdAt: serverTimestamp()
-          });
-        } else {
-          // Existing user, just update last sign-in timestamp if needed
-          await setDoc(userRef, {
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        }
+        await userService.initProfile(user.uid, {
+          email: user.email || '',
+          displayName: user.displayName || 'Anonymous User',
+        });
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, userPath);
       }

@@ -17,34 +17,61 @@ async function startServer() {
     const { reference } = req.body;
     const secretKey = process.env.PAYSTACK_SECRET_KEY;
 
+    if (!reference || typeof reference !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Transaction reference is required.'
+      });
+    }
+
     if (!secretKey) {
+      console.error('PAYSTACK_SECRET_KEY is missing from environment variables');
       return res.status(500).json({ 
         success: false, 
-        message: 'Paystack secret key is not configured on the server.' 
+        message: 'Payment system configuration error. Please contact support.' 
       });
     }
 
     try {
+      console.log(`Verifying Paystack transaction: ${reference}...`);
       const response = await axios.get(
-        `https://api.paystack.co/transaction/verify/${reference}`,
+        `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
         {
           headers: {
             Authorization: `Bearer ${secretKey}`,
             'Content-Type': 'application/json',
           },
+          timeout: 10000 // 10s timeout
         }
       );
 
-      if (response.data.data.status === 'success') {
-        res.json({ success: true, data: response.data.data });
+      const paymentData = response.data.data;
+      
+      if (paymentData && paymentData.status === 'success') {
+        console.log(`Payment verified successfully for ref: ${reference}`);
+        res.json({ 
+          success: true, 
+          data: {
+            amount: paymentData.amount,
+            currency: paymentData.currency,
+            status: paymentData.status,
+            paid_at: paymentData.paid_at,
+            customer: paymentData.customer
+          } 
+        });
       } else {
-        res.json({ success: false, message: 'Payment verification failed' });
+        console.warn(`Payment verification failed for ref: ${reference}. Status: ${paymentData?.status}`);
+        res.status(400).json({ 
+          success: false, 
+          message: `Payment verification failed: ${paymentData?.gateway_response || 'Unknown reason'}` 
+        });
       }
     } catch (error: any) {
-      console.error('Paystack verification error:', error.response?.data || error.message);
-      res.status(500).json({ 
+      const errorMessage = error.response?.data?.message || error.message;
+      console.error('Paystack API error:', errorMessage);
+      res.status(502).json({ 
         success: false, 
-        message: 'An error occurred during payment verification' 
+        message: 'Could not communicate with payment provider. Please try again.' 
       });
     }
   });

@@ -63,3 +63,12 @@ export interface Order {
   paystackReference?: string;
   createdAt: number;
 }
+
+export interface Collection {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  category: string;
+  createdAt: number;
+}

@@ -24,11 +24,13 @@ export const usePaystack = () => {
   const initializePayment = ({ 
     email, 
     amount, 
+    currency = 'NGN',
     onSuccess, 
     onClose 
   }: { 
     email: string; 
     amount: number; 
+    currency?: string;
     onSuccess: (response: any) => void; 
     onClose: () => void; 
   }) => {
@@ -40,8 +42,8 @@ export const usePaystack = () => {
     const handler = (window as any).PaystackPop.setup({
       key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
       email: email,
-      amount: amount * 100, // Paystack expects kobo/cents
-      currency: 'USD',
+      amount: Math.round(amount * 100), // Paystack expects kobo/cents
+      currency: currency,
       callback: (response: any) => {
         onSuccess(response);
       },
