@@ -47,6 +47,30 @@ export default function Collections() {
     }
   };
 
+  const STATIC_COLLECTIONS = [
+    {
+      id: 'col_1',
+      title: 'Signature Series',
+      description: 'The pinnacle of Velocity engineering. Direct from our research labs.',
+      image: 'https://images.unsplash.com/photo-1552346154-21d32810aba3?auto=format&fit=crop&q=80&w=1000',
+      category: 'signature'
+    },
+    {
+      id: 'col_2',
+      title: 'Heritage Basketball',
+      description: 'Classic silhouettes re-imagined with modern high-impact technology.',
+      image: 'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?auto=format&fit=crop&q=80&w=1000',
+      category: 'basketball'
+    },
+    {
+      id: 'col_3',
+      title: 'Urban Expedition',
+      description: 'Performance gear optimized for the variable conditions of city life.',
+      image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?auto=format&fit=crop&q=80&w=1000',
+      category: 'urban'
+    }
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -54,6 +78,13 @@ export default function Collections() {
       </div>
     );
   }
+
+  const allCollections = [...STATIC_COLLECTIONS];
+  collections.forEach(c => {
+    if (!STATIC_COLLECTIONS.find(sc => sc.category === c.category)) {
+      allCollections.push(c);
+    }
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-6 md:px-10 py-20 font-sans">
@@ -66,31 +97,25 @@ export default function Collections() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {collections.length === 0 ? (
-          <div className="col-span-full py-20 text-center border border-white/5 bg-white/5">
-            <p className="font-bold text-stone-600 uppercase tracking-widest">No dynamic collections deployed yet.</p>
-          </div>
-        ) : (
-          collections.map((c, i) => (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-            >
-              <CollectionCard 
-                title={c.title} 
-                description={c.description} 
-                image={c.image} 
-                link={`/products?category=${c.category}`} 
-                icon={getIcon(c.category)} 
-              />
-            </motion.div>
-          ))
-        )}
+        {allCollections.map((c, i) => (
+          <motion.div
+            key={c.id}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+          >
+            <CollectionCard 
+              title={c.title} 
+              description={c.description} 
+              image={c.image} 
+              link={`/products?category=${c.category}`} 
+              icon={getIcon(c.category)} 
+            />
+          </motion.div>
+        ))}
       </div>
 
-      <div className="mt-40 space-y-12">
+      <div id="brands" className="mt-40 space-y-12">
         <div className="flex items-end justify-between border-b border-white/10 pb-8">
           <div className="space-y-4">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-stone-500">Corporate Partners</p>
