@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Shared Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return (!('email' in data) || (data.email is string && data.email.size() <= 200)) &&
+             (!('role' in data) || (data.role in ['user', 'admin'])) &&
+             (data.keys().hasOnly(['email', 'displayName', 'role', 'wishlist', 'createdAt', 'updatedAt']));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      
+      allow create: if isOwner(userId) && 
+                      isValidUser(incoming()) && 
+                      incoming().email is string &&
+                      incoming().role == 'user' && 
+                      incoming().createdAt == request.time &&
+                      incoming().keys().hasAll(['email', 'role', 'createdAt']);
+      
+      allow update: if isOwner(userId) && (
+        isValidUser(incoming()) && 
+        incoming().createdAt == existing().createdAt &&
+        incoming().role == existing().role &&
+        incoming().email == existing().email &&
+        (
+          // Action: Update Profile
+          (incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'wishlist', 'updatedAt']) &&
+           incoming().updatedAt == request.time) ||
+          // Action: Sync
+          (incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt']) &&
+           incoming().updatedAt == request.time)
+        )
+      ) || isAdmin();
+    }
+
+    // Sneaker Validation
+    function isValidSneaker(data) {
+      return data.name is string && data.name.size() <= 200 &&
+             data.brand is string && data.brand.size() <= 100 &&
+             data.price is number && data.price > 0 &&
+             data.stock is int && data.stock >= 0 &&
+             data.createdAt == request.time;
+    }
+
+    match /sneakers/{sneakerId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidSneaker(incoming());
+      allow update: if isAdmin() && isValidSneaker(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Order Validation
+    function isValidOrder(data) {
+      return data.userId == request.auth.uid &&
+             data.status in ['pending', 'paid', 'shipped', 'delivered', 'cancelled'] &&
+             data.totalAmount is number && data.totalAmount >= 0 &&
+             data.createdAt == request.time;
+    }
+
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidOrder(incoming());
+      allow update: if isAdmin() || (
+        isOwner(resource.data.userId) && 
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']) &&
+        incoming().status == 'cancelled' && existing().status == 'pending'
+      );
+    }
+
+    // Review Validation
+    function isValidReview(data) {
+      return data.sneakerId is string &&
+             data.userId == request.auth.uid &&
+             data.rating is int && data.rating >= 1 && data.rating <= 5 &&
+             data.comment is string && data.comment.size() <= 1000 &&
+             data.createdAt == request.time;
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming()) && exists(/databases/$(database)/documents/sneakers/$(incoming().sneakerId));
+      allow update: if false; // Reviews are immutable for now or owner can delete/re-add
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow get, list: if isOwner(resource.data.userId);
+      allow create: if isAdmin(); // Only system/admin sends notifications
+      allow update: if isOwner(resource.data.userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+    }
+  }
+}
