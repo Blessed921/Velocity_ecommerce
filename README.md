@@ -1,5 +1,5 @@
 <div align="center">
-<img width="1200" height="475" alt="Velocity Logo" src="./public/velocity-logo.png" />
+<img width="1200" height="475" alt="Velocity Logo" src="https://raw.githubusercontent.com/Blessed921/Velocity_ecommerce/main/public/velocity-logo.png" />
 </div>
 
 # Run and deploy your app
