@@ -28,7 +28,7 @@ const Navbar = () => {
           <Link to="/products" className="hover:text-white transition-colors">New Arrivals</Link>
           <Link to="/products?category=men" className="hover:text-white transition-colors">Men</Link>
           <Link to="/products?category=women" className="hover:text-white transition-colors">Women</Link>
-          <Link to="/products?category=brands" className="hover:text-white transition-colors">Brands</Link>
+          <Link to="/collections#brands" className="hover:text-white transition-colors">Brands</Link>
         </div>
 
         <div className="flex items-center space-x-6">
@@ -86,6 +86,7 @@ const Navbar = () => {
               <Link to="/products" onClick={() => setIsMenuOpen(false)}>Signature Series</Link>
               <Link to="/products?category=men" onClick={() => setIsMenuOpen(false)}>Men</Link>
               <Link to="/products?category=women" onClick={() => setIsMenuOpen(false)}>Women</Link>
+              <Link to="/collections#brands" onClick={() => setIsMenuOpen(false)}>Brands Edition</Link>
               <Link to="/dashboard" onClick={() => setIsMenuOpen(false)}>Account</Link>
             </div>
           </motion.div>
@@ -130,7 +131,7 @@ export default function App() {
               <div>
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white mb-8">Collections</h4>
                 <ul className="space-y-4 text-xs font-bold uppercase tracking-widest text-stone-500">
-                  <li><Link to="/products" className="hover:text-white cursor-pointer transition-colors">Signature Series</Link></li>
+                  <li><Link to="/products?category=signature" className="hover:text-white cursor-pointer transition-colors">Signature Series</Link></li>
                   <li><Link to="/products?category=basketball" className="hover:text-white cursor-pointer transition-colors">Heritage Basketball</Link></li>
                   <li><Link to="/products?category=urban" className="hover:text-white cursor-pointer transition-colors">Urban Expedition</Link></li>
                   <li><Link to="/collections" className="hover:text-white cursor-pointer transition-colors">Limited Drops</Link></li>

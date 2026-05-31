@@ -108,7 +108,7 @@ export default function Home() {
             <div className="absolute inset-0 p-12 flex flex-col justify-end bg-gradient-to-t from-black/80 to-transparent">
               <h3 className="text-5xl font-serif italic mb-4">Urban Expedition</h3>
               <p className="text-stone-400 mb-8 max-w-sm">Built for the concrete jungle. High traction, maximum comfort.</p>
-              <Link to="/products?category=lifestyle" className="text-[10px] font-black uppercase tracking-[0.3em] text-white border-b border-white pb-1 w-fit hover:tracking-[0.4em] transition-all">Explore Category</Link>
+              <Link to="/products?category=urban" className="text-[10px] font-black uppercase tracking-[0.3em] text-white border-b border-white pb-1 w-fit hover:tracking-[0.4em] transition-all">Explore Category</Link>
             </div>
           </div>
           <div className="relative aspect-square md:aspect-auto h-full group overflow-hidden">

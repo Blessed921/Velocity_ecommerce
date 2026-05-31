@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/api/verify-payment",
+      "destination": "/api/verify-payment.ts"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
