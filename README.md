@@ -1,3 +1,7 @@
+<div align="center">
+<img width="1200" height="475" alt="VelocityBanner" src="/public/velocity-logo.png" />
+</div>
+
 # Velox Sneakers eCommerce
 
 An interactive, high-performance, and beautifully crafted sneakers eCommerce store featuring premium animations, seamless shopping interactions, wishlist persistence, verified user reviews, real-time notifications, and integrated Paystack payments.
